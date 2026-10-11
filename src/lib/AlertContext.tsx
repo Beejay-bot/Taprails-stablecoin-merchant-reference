@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { useTheme } from './ThemeProvider';
 
 export interface AlertButton {
   text: string;
@@ -23,9 +22,6 @@ const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [alertConfig, setAlertConfig] = useState<AlertOptions | null>(null);
-  const { theme } = useTheme();
-  const styles = useMemo(() => getStyles(theme), [theme]);
-
   const [visible, setVisible] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -63,7 +59,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             ) : null}
 
             <View style={styles.btnRow}>
-              {(!alertConfig?.buttons || alertConfig.buttons.length === 0) ? (
+              {!alertConfig?.buttons || alertConfig.buttons.length === 0 ? (
                 <TouchableOpacity style={styles.button} onPress={hideAlert}>
                   <Text style={styles.btnText}>OK</Text>
                 </TouchableOpacity>
@@ -84,8 +80,8 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     <Text
                       style={[
                         styles.btnText,
-                        btn.style === 'destructive' && { color: theme.colors.red },
-                        btn.style === 'cancel' && { color: theme.colors.text40 },
+                        btn.style === 'destructive' && { color: '#EF4444' },
+                        btn.style === 'cancel' && { color: 'rgba(255,255,255,0.4)' },
                       ]}
                     >
                       {btn.text}
@@ -109,68 +105,67 @@ export const useAlert = () => {
   return context;
 };
 
-const getStyles = (theme: any) =>
-  StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    backdrop: {
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    card: {
-      width: '82%',
-      backgroundColor: theme.colors.surfaceElevated,
-      borderRadius: theme.radius.xl,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      elevation: 20,
-    },
-    title: {
-      fontSize: theme.fontSize.lg,
-      fontWeight: theme.font.bold,
-      color: theme.colors.text,
-      textAlign: 'center',
-      marginTop: 20,
-      paddingHorizontal: 16,
-    },
-    message: {
-      fontSize: theme.fontSize.sm,
-      color: theme.colors.text40,
-      textAlign: 'center',
-      marginTop: 8,
-      paddingHorizontal: 20,
-      lineHeight: 20,
-    },
-    btnRow: {
-      flexDirection: 'row',
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-      marginTop: 20,
-    },
-    button: {
-      flex: 1,
-      paddingVertical: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    buttonBorder: {
-      borderLeftWidth: 1,
-      borderLeftColor: theme.colors.border,
-    },
-    buttonCancel: {
-      backgroundColor: 'rgba(255,255,255,0.02)',
-    },
-    btnText: {
-      fontSize: theme.fontSize.base,
-      fontWeight: theme.font.semibold,
-      color: theme.colors.purpleLight,
-    },
-  });
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  card: {
+    width: '82%',
+    backgroundColor: '#1E1E2A',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    elevation: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  message: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+    lineHeight: 20,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    marginTop: 20,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonBorder: {
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255,255,255,0.08)',
+  },
+  buttonCancel: {
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  btnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+});

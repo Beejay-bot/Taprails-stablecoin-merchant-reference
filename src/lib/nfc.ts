@@ -1,9 +1,7 @@
 /**
- * nfc.ts — NFC Hardware Verification
+ * nfc.ts — NFC Hardware Checks
  *
- * Before launching a contactless payment session, verify that:
- * 1. The device is running Android (iOS cannot act as an HCE receiver due to Apple restrictions).
- * 2. NFC hardware is present and enabled.
+ * Checks that NFC is supported and turned on before starting a payment session.
  */
 import { Platform } from 'react-native';
 import NfcManager from 'react-native-nfc-manager';
@@ -23,8 +21,7 @@ export const checkNfcStatus = async (): Promise<{
     const supported = await NfcManager.isSupported();
     const enabled = supported ? await NfcManager.isEnabled() : false;
     return { supported, enabled };
-  } catch (error) {
-    console.warn('[NFC] Error checking NFC status:', error);
+  } catch {
     return { supported: false, enabled: false };
   }
 };
@@ -33,8 +30,6 @@ export const openNfcSettings = async (): Promise<void> => {
   if (isAndroid) {
     try {
       await NfcManager.goToNfcSetting();
-    } catch (err) {
-      console.warn('[NFC] Error opening NFC settings:', err);
-    }
+    } catch {}
   }
 };
