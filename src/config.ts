@@ -24,7 +24,4 @@ export const config = {
   environment: ((APP_ENV || 'sandbox').toLowerCase() === 'production'
     ? 'production'
     : 'sandbox') as 'sandbox' | 'production',
-
-  // Default Settlement Chain ('base' | 'polygon')
-  defaultChain: 'base' as 'base' | 'polygon',
 };
