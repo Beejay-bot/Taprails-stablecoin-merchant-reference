@@ -1,0 +1,139 @@
+# TapRails POS — Merchant SDK Quick Reference
+
+> **The simplest, zero-fluff reference implementation for merchants accepting contactless Tap-to-Pay crypto payments using `@taprails/tap-to-pay`.**
+
+This reference is designed for first-time developers. It cuts out unnecessary backend auth, complex navigation, and database code, giving you a **clean, copy-pasteable Point-of-Sale (POS) terminal** that accepts USDC tap-to-pay charges on Android.
+
+---
+
+## ⚡ Quick Start in 3 Minutes
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Reverse port for local backend testing (if using local API on port 3001)
+adb reverse tcp:3001 tcp:3001
+
+# 3. Launch on Android
+npm run android
+```
+
+---
+
+## 🎯 How It Works: The 3 Core Steps
+
+Accepting tap-to-pay on the merchant side requires only 3 simple steps:
+
+### 1. Initialize the SDK
+Initialize `ContactlessCryptoSDK` with your merchant credentials when your app boots:
+
+```typescript
+import { ContactlessCryptoSDK } from '@taprails/tap-to-pay';
+
+await ContactlessCryptoSDK.initialize({
+  apiKey: 'sk_test_your_api_key',
+  apiUrl: 'http://localhost:3001', // or https://api.taprails.com
+  environment: 'sandbox',          // 'sandbox' or 'production'
+  merchantId: 'your_merchant_id',
+  aid: 'F05452FD994ED60006',        // TapRails AID
+});
+```
+
+---
+
+### 2. Verify NFC Hardware
+Check that NFC is turned on before starting a payment session:
+
+```typescript
+import NfcManager from 'react-native-nfc-manager';
+
+await NfcManager.start();
+const isEnabled = await NfcManager.isEnabled();
+
+if (!isEnabled) {
+  // Prompt merchant to enable NFC
+  await NfcManager.goToNfcSetting();
+}
+```
+
+---
+
+### 3. Display the Tap-to-Pay Flow
+Mount `<PaymentFlowManager />` in your bottom sheet or modal. The SDK takes care of the NFC card emulation, animations, customer tap reception, and blockchain settlement:
+
+```tsx
+import { PaymentFlowManager } from '@taprails/tap-to-pay';
+
+<PaymentFlowManager
+  config={{
+    type: 'merchant',
+    chain: 'base', // 'base' or 'polygon'
+    onComplete: (data) => {
+      console.log('Payment Settled!', data.txHash, data.amount);
+    },
+    onCancel: () => console.log('Payment Cancelled'),
+    onError: (err) => console.error('Payment Error', err),
+  }}
+  amount="15.00" // Pre-filled amount (skips manual entry)
+  chain="base"
+  onMerchantCancel={() => setModalVisible(false)}
+/>
+```
+
+---
+
+## 📱 Pre-filled vs. Open Amount Modes
+
+The SDK adapts dynamically based on whether you pass the `amount` prop:
+
+| Mode | Usage | What Merchant Sees |
+|---|---|---|
+| **Fixed Amount (Cart/POS)** | `<PaymentFlowManager amount="25.00" ... />` | Clean confirmation card showing `$25.00` with an "Accept Payment" button. |
+| **Open Keypad Mode** | `<PaymentFlowManager ... />` *(no amount prop)* | Large `$` amount entry screen with quick-select chips (`+$5`, `+$10`, `+$25`, `+$50`) and numeric keypad. |
+
+---
+
+## ⚠️ Important Developer Rules
+
+1. **Android Requirement**:  
+   Due to Apple OS restrictions on background Host Card Emulation (HCE), the device acting as the **Merchant (terminal receiving payments)** must run on **Android**. Customers paying can use either iOS or Android.
+
+2. **Never allow Backdrop Dismiss during active NFC**:  
+   Closing the payment sheet while an NFC transceive session is in progress abruptly kills the Android HCE service, causing a "transceive fail" error on the customer's phone. Always let merchants exit using the SDK's built-in Cancel button.
+
+3. **Android Permissions**:  
+   Ensure your `android/app/src/main/AndroidManifest.xml` includes `NFC` and `NFC_HCE` features and declares the `com.taprails.hce.TapRailsHCEService` with `@xml/aid_list`. See [`AndroidManifest.xml`](file:///android/app/src/main/AndroidManifest.xml) for the exact reference.
+
+---
+
+## 📂 Simplified File Structure
+
+```
+├── App.tsx                           # Main app root with TapRails theme provider
+├── src/
+│   ├── screens/
+│   │   └── POSTerminalScreen.tsx     # The entire POS Keypad & Tap-to-Pay screen
+│   ├── components/
+│   │   ├── PaymentFlowModal.tsx      # Clean wrapper for SDK PaymentFlowManager
+│   │   └── TerminalSettingsModal.tsx # In-app modal to edit API keys on the fly
+│   ├── lib/
+│   │   ├── sdk.ts                    # 30-line SDK initialization helper
+│   │   ├── nfc.ts                    # Simple NFC hardware checks
+│   │   └── AlertContext.tsx          # Custom Neobank modal alert system
+│   ├── config.ts                     # Default sandbox credentials
+│   ├── theme.ts                      # Design system tokens (light/dark)
+│   └── types/index.ts                # TypeScript types
+├── android/
+│   └── app/src/main/
+│       ├── AndroidManifest.xml       # NFC HCE service registration
+│       └── res/xml/aid_list.xml      # TapRails AID filters
+├── .env.example                      # Sample credentials
+└── package.json
+```
+
+---
+
+## 📄 License
+
+MIT © TapRails

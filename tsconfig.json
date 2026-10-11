@@ -1,0 +1,14 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "strict": true,
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@taprails/tap-to-pay": ["../TapRail-React-Native-SDK/src/index.ts"],
+      "@noble/curves/*": ["../TapRail-React-Native-SDK/node_modules/@noble/curves/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/node_modules", "**/Pods"]
+}
