@@ -4,6 +4,7 @@ import { NFCErrorCode } from '@taprails/tap-to-pay';
 import { useAlert } from '../lib/AlertContext';
 import { initMerchantSDK, isSDKReady } from '../lib/sdk';
 import { checkNfcStatus, openNfcSettings, isAndroid } from '../lib/nfc';
+import { config } from '../config';
 
 import { TerminalHeader } from '../components/TerminalHeader';
 import { AmountKeypad } from '../components/AmountKeypad';
@@ -24,6 +25,15 @@ export const POSTerminalScreen: React.FC = () => {
     const startup = async () => {
       const nfc = await checkNfcStatus();
       setNfcState(nfc);
+
+      if (!config.apiKey || !config.merchantId || config.apiKey.includes('your_api_key')) {
+        setSdkReady(false);
+        showAlert(
+          'Credentials Required',
+          'Please configure TAPRAILS_API_KEY and TAPRAILS_MERCHANT_ID in your .env file to enable the POS terminal.'
+        );
+        return;
+      }
 
       try {
         await initMerchantSDK();
@@ -89,6 +99,14 @@ export const POSTerminalScreen: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open Settings', onPress: openNfcSettings },
         ]
+      );
+      return;
+    }
+
+    if (!config.apiKey || !config.merchantId || config.apiKey.includes('your_api_key')) {
+      showAlert(
+        'Credentials Required',
+        'Please configure TAPRAILS_API_KEY and TAPRAILS_MERCHANT_ID in your .env file before charging.'
       );
       return;
     }

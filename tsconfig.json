@@ -1,8 +1,10 @@
 {
   "extends": "@react-native/typescript-config",
   "compilerOptions": {
+    "jsx": "react-native",
     "strict": true,
     "moduleResolution": "Bundler",
+    "types": ["jest", "node"],
     "baseUrl": ".",
     "paths": {
       "@taprails/tap-to-pay": ["../TapRail-React-Native-SDK/src/index.ts"],

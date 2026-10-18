@@ -21,7 +21,7 @@ cp .env.example .env
 
 ```env
 TAPRAILS_API_KEY=sk_test_your_api_key
-TAPRAILS_API_URL=http://sandbox.taprails.xyz or https://api.taprails.xyz
+TAPRAILS_API_URL=https://sandbox.taprails.xyz # or https://api.taprails.xyz
 TAPRAILS_MERCHANT_ID=your_merchant_id
 TAPRAILS_DEFAULT_AID=F05452FD994ED60006
 APP_ENV=sandbox
@@ -54,7 +54,7 @@ import { ContactlessCryptoSDK } from '@taprails/tap-to-pay';
 
 await ContactlessCryptoSDK.initialize({
   apiKey: 'sk_test_your_api_key',     // API key from Partner Dashboard
-  apiUrl: 'http://sandbox.taprails.xyz',     // or https://api.taprails.xyz
+  apiUrl: 'https://sandbox.taprails.xyz',    // or https://api.taprails.xyz
   environment: 'sandbox',              // 'sandbox' or 'production'
   merchantId: 'merchant_id',      // Merchant ID from any merchant created under your organization
   aid: 'F05452FD994ED60006',           // AID registered in Partner Dashboard
@@ -192,7 +192,9 @@ Declare NFC hardware permissions and register the **`TapRailsHCEService`** Host 
   <uses-feature android:name="android.hardware.nfc" android:required="true" />
   <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
 
-  <application ...>
+  <application
+    ...
+    android:networkSecurityConfig="@xml/network_security_config">
 
     <!-- TapRails HCE Service (merchant terminal NFC emulation) -->
     <service
@@ -230,6 +232,68 @@ Create `android/app/src/main/res/xml/aid_list.xml` with your organization's uniq
 </host-apdu-service>
 ```
 
+### 6. Network Security Config (`android/app/src/main/res/xml/network_security_config.xml`)
+To protect merchant terminals against Man-in-the-Middle (MITM) credential theft on public Wi-Fi, cleartext HTTP is disallowed globally and scoped strictly to localhost / emulator loopbacks for local development:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext HTTP solely for local development and emulator loopbacks -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
+```
+
+---
+
+## 🔐 Webhook Verification Reference (Timestamp Replay-Protected)
+
+For merchants receiving backend webhooks (e.g. `payment.confirmed`), incoming requests must be cryptographically verified using HMAC-SHA256 and checked for freshness to prevent **replay attacks**.
+
+TapRails dispatches webhooks with:
+- `X-Webhook-Signature`: Hex-encoded HMAC-SHA256 digest
+- `X-Webhook-Timestamp`: UNIX timestamp or ISO 8601 string of when the event was dispatched
+- `X-Webhook-Event`: The event identifier (e.g. `payment.confirmed`)
+
+### Why include the timestamp in the signature?
+If a webhook signature only hashes the raw request body, any attacker who intercepts the payload can replay that exact HTTP request hours, days, or months later to re-trigger fulfillment. Binding the timestamp into the signature input (`${timestamp}.${rawBody}`) ensures that:
+1. Replayed requests outside a tolerance window (e.g. 5 minutes) are immediately rejected.
+2. The `X-Webhook-Timestamp` header itself cannot be forged or tampered with without invalidating the HMAC signature.
+
+A reference implementation is provided in [`src/lib/webhookVerification.ts`](file:///src/lib/webhookVerification.ts):
+
+```typescript
+import { verifyWebhookSignature } from './src/lib/webhookVerification';
+
+// Inside your Express/Node.js backend endpoint:
+app.post('/api/webhooks/taprails', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-webhook-signature'] as string;
+  const timestamp = req.headers['x-webhook-timestamp'] as string;
+  const rawBody = req.body.toString('utf-8');
+
+  const { isValid, error } = verifyWebhookSignature({
+    rawBody,
+    signature,
+    timestamp,
+    secret: process.env.TAPRAILS_WEBHOOK_SECRET!,
+    toleranceSeconds: 300, // Reject requests older than 5 minutes
+  });
+
+  if (!isValid) {
+    console.error('Webhook verification failed:', error);
+    return res.status(401).json({ error: 'Invalid or expired signature' });
+  }
+
+  const event = JSON.parse(rawBody);
+  // Process event idempotently...
+  return res.status(200).json({ received: true });
+});
+```
+
 ---
 
 ## 📂 Minimal Project Layout
@@ -239,18 +303,20 @@ taprail-merchant-reference/
 ├── App.tsx                    # The entire POS Keypad & Tap-to-Pay screen
 ├── src/
 │   ├── config.ts              # API credentials & network settings
+│   ├── components/            # Reusable POS keypad, header & receipt components
+│   ├── screens/               # Single-screen merchant terminal
 │   └── lib/
-│       ├── sdk.ts             # 25-line SDK initialization helper
-│       ├── nfc.ts             # Simple NFC hardware status check
-│       └── AlertContext.tsx   # Custom Neobank modal alert (replaces Alert.alert)
+│       ├── sdk.ts             # SDK initialization helper
+│       ├── nfc.ts             # NFC hardware status & intent checks
+│       ├── AlertContext.tsx   # Custom Neobank modal alert
+│       └── webhookVerification.ts # Replay-protected webhook signature verification
 ├── android/
-│   ├── build.gradle           # Kotlin buildscript configuration
-│   └── app/
-│       ├── build.gradle       # minSdkVersion 23 + DataStore dependencies
-│       └── src/main/
-│           ├── AndroidManifest.xml # NFC permissions & TapRailsHCEService declaration
-│           └── res/xml/aid_list.xml # TapRails AID filters (e.g. F05452FD994ED60006)
-├── .env.example               # Sample credentials
+│   └── app/src/main/
+│       ├── AndroidManifest.xml # NFC permissions & TapRailsHCEService declaration
+│       └── res/xml/
+│           ├── aid_list.xml    # TapRails AID filters (e.g. F05452FD994ED60006)
+│           └── network_security_config.xml # Strict HTTPS enforcement
+├── .env.example               # Sanitized credential placeholders
 └── package.json
 ```
 
